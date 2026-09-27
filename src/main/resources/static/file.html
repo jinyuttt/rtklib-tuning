@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单文件分析 · RTKLIB Tuning</title>
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/file.css">
+</head>
+<body>
+
+<header class="top-bar">
+    <div class="brand"><span style="font-size:18px">📂</span><h1>单文件分析</h1></div>
+    <nav>
+        <a href="/" class="nav-link">🛰 参数调试</a>
+        <a href="/solve.html" class="nav-link">📡 独立定位</a>
+    </nav>
+    <button class="theme-btn" onclick="FileAnalysis.toggleTheme()">☀</button>
+</header>
+
+<div class="file-layout">
+
+    <div class="panel">
+        <strong style="font-size:12px;color:var(--text)">📁 选择文件</strong>
+        <div class="drop-zone" id="drop-zone">
+            <span class="ico">📄</span>
+            <span class="hint">点击或拖入 RTCM / RINEX / POS / SP3 文件</span>
+            <input type="file" id="file-input" accept=".rtcm3,.rtcm,.obs,.nav,.pos,.sp3,.clk,.txt,.bin">
+        </div>
+        <div class="or">或输入服务器路径：</div>
+        <div class="path-row">
+            <input type="text" id="server-path" placeholder="D:\rtcm3\站号\日期\0.rtcm3">
+            <button class="btn primary sm" onclick="FileAnalysis.onServerPath()">分析</button>
+        </div>
+    </div>
+
+    <div id="analysis-result" style="display:none">
+        <div class="overview-grid">
+            <div class="panel">
+                <div class="panel-head"><strong>📊 统计</strong></div>
+                <div class="stat-grid" id="stat-grid"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-head"><strong>⏱ 缺历检测</strong></div>
+                <div id="gap-list" class="gap-list"></div>
+            </div>
+        </div>
+
+        <div class="chart-group">
+            <div class="chart-group-label">卫星分布</div>
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <div class="chart-head">天空图</div>
+                    <div class="chart-body"><canvas id="cv-sky"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-head">DOP 值</div>
+                    <div class="chart-body"><canvas id="cv-dop"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-group">
+            <div class="chart-group-label">信号质量</div>
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <div class="chart-head">SNR 时序</div>
+                    <div class="chart-body"><canvas id="cv-snr"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-head">SNR 分布</div>
+                    <div class="chart-body"><canvas id="cv-snr-bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/charts.js?v=20260928b"></script>
+<script src="/js/file.js"></script>
+</body>
+</html>

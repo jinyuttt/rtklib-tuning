@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>RTKLIB 参数调试</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .root-bar{display:flex;gap:6px;align-items:center;padding:0 10px}
+    .root-bar input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+      padding:5px 8px;border-radius:4px;font-size:11px;font-family:monospace;max-width:340px}
+    .root-bar input:focus{outline:none;border-color:var(--accent)}
+
+    .main-layout{
+      display:grid;
+      grid-template-columns:230px minmax(0,1fr) 360px;
+      flex:1;overflow:hidden;
+    }
+
+    .sidebar{
+      background:var(--bg2);border-right:1px solid var(--border);
+      display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;padding:6px 0;
+    }
+    .sidebar h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;
+      padding:0 10px;margin-bottom:3px}
+    .side-pair{display:flex;align-items:center;padding:7px 10px;gap:5px;font-size:11px;
+      cursor:pointer;border-left:3px solid transparent}
+    .side-pair:hover{background:var(--bg3)}
+    .side-pair.active{border-left-color:var(--accent);background:var(--bg3)}
+    .side-pair .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .side-pair .rmv{visibility:hidden;color:var(--red);font-size:12px;cursor:pointer}
+    .side-pair:hover .rmv{visibility:visible}
+    .sidebar-section{height:1px;background:var(--border);margin:6px 0}
+
+    .work-col{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+    .work-col .work-scroll{flex:1;overflow-y:auto;padding:14px 18px}
+
+    .result-col{
+      background:var(--bg2);border-left:1px solid var(--border);
+      display:flex;flex-direction:column;overflow:hidden;min-width:0;
+    }
+    .result-col .result-scroll{flex:1;overflow-y:auto;padding:14px}
+
+    .sel-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);
+      border:1px solid var(--border);border-radius:8px;margin-bottom:12px}
+    .sel-bar label{font-size:10px;color:var(--text2)}
+    .sel-bar select,.sel-bar input{background:var(--bg3);color:var(--text);
+      border:1px solid var(--border);padding:5px 7px;border-radius:4px;font-size:11px}
+    .sel-bar select{min-width:100px}
+    .sel-bar input[type=number]{width:56px;padding:5px 8px;font-size:12px}
+
+    .summary-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+    .summary-pill{background:var(--bg3);border-radius:6px;padding:6px 12px;font-size:11px}
+    .summary-pill b{font-weight:700}
+
+    .param-card{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden}
+    .param-card-head{display:flex;align-items:center;justify-content:space-between;
+      padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border)}
+    .param-card-head input{background:transparent;border:none;color:var(--text);
+      font-weight:600;font-size:12px;width:120px}
+    .param-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));
+      gap:4px;padding:8px 12px}
+    .param-cell{display:flex;flex-direction:column;gap:1px}
+    .param-cell label{font-size:8px;color:var(--text2);letter-spacing:.2px}
+    .param-cell select,.param-cell input{background:var(--bg3);color:var(--text);
+      border:1px solid var(--border);padding:3px 5px;border-radius:3px;font-size:10px}
+
+    .eval-result{display:flex;align-items:center;gap:10px;padding:10px 12px;
+      background:var(--bg3);border-radius:6px;margin-bottom:4px;font-size:12px}
+    .eval-result .fill{height:8px;border-radius:4px;transition:width .3s}
+    .eval-result.best{border:2px solid var(--accent)}
+
+    .pair-builder-row{display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);
+      border-radius:6px;border:1px solid var(--border);margin-bottom:6px;flex-wrap:wrap}
+    .pair-builder-row select,.pair-builder-row input{background:var(--bg3);color:var(--text);
+      border:1px solid var(--border);padding:4px 6px;border-radius:4px;font-size:11px}
+
+    .param-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .param-head h2{font-size:13px;margin:0}
+    .param-head .spacer{flex:1}
+    .param-head .eval-time{font-size:10px;color:var(--text2)}
+    .param-head .eval-time input{width:52px;background:var(--bg3);color:var(--text);
+      border:1px solid var(--border);padding:3px 6px;border-radius:3px;font-size:11px}
+
+    @media (max-width:1100px){
+      .main-layout{grid-template-columns:1fr}
+      .sidebar{position:fixed;left:-230px;top:0;bottom:0;z-index:20;transition:left .2s}
+      .sidebar.open{left:0;box-shadow:4px 0 12px rgba(0,0,0,.3)}
+      .result-col{border-left:none;border-top:1px solid var(--border);max-height:50vh}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="logo"><span>🛰</span> RTKLIB 参数调试</div>
+    <div class="root-bar">
+      <span style="font-size:10px;color:var(--text2)">根目录:</span>
+      <input type="text" id="root-path" value="D:\rtcm3">
+      <button class="btn sm primary" onclick="App.doScan()">扫描</button>
+    </div>
+    <div class="topbar-right">
+      <button class="btn sm" onclick="App.showHelp()">❓ 帮助</button>
+      <button class="btn sm" onclick="App.showConfig()">⚙ 配对组</button>
+      <a href="/file.html" class="btn sm" style="text-decoration:none">📄 单文件分析</a>
+      <a href="/solve.html" class="btn sm primary" style="text-decoration:none">🛰 独立定位</a>
+      <button class="theme-btn" onclick="App.toggleTheme()">☀</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+
+    <aside class="sidebar">
+      <h3>🔗 配对组</h3>
+      <div id="pair-list"><div style="padding:7px 10px;font-size:10px;color:var(--text2)">扫描 → ⚙ 创建</div></div>
+      <div class="sidebar-section"></div>
+      <h3 style="display:flex;justify-content:space-between;padding-right:10px">📋 历史任务
+        <button class="btn sm danger" onclick="App.clearAllTasks()" style="font-size:8px;padding:1px 4px">清空</button>
+      </h3>
+      <div id="task-list"><div style="padding:7px 10px;font-size:10px;color:var(--text2)">暂无</div></div>
+      <div style="margin-top:auto;padding:6px 10px;font-size:9px;color:var(--text2);font-family:monospace" id="scan-status"></div>
+    </aside>
+
+    <section class="work-col">
+      <div class="work-scroll">
+
+        <div id="welcome" class="empty-hint">
+          <div style="font-size:24px;margin-bottom:6px">📡</div>
+          <div>输入根目录 → 扫描 → ⚙ 创建配对 → 选时段 → 加载 → 调参数</div>
+          <div style="margin-top:8px;font-size:11px;color:var(--text2)">或直接输入文件路径：</div>
+        </div>
+
+        <div class="sel-bar" id="direct-bar" style="display:flex;flex-wrap:wrap;gap:6px">
+          <label style="font-size:10px;color:var(--text2)">测站:</label>
+          <input type="text" id="direct-rover" placeholder="D:\rtcm3\站号\日期\0.rtcm3" style="flex:1;min-width:180px;background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:5px 7px;border-radius:4px;font-size:11px;font-family:monospace">
+          <label style="font-size:10px;color:var(--text2)">基站:</label>
+          <input type="text" id="direct-base" placeholder="D:\rtcm3\站号\日期\0.rtcm3" style="flex:1;min-width:180px;background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:5px 7px;border-radius:4px;font-size:11px;font-family:monospace">
+          <button class="btn primary sm" onclick="App.directLoad()">▶ 直接加载</button>
+        </div>
+
+        <div class="sel-bar" id="sel-bar" style="display:none;flex-wrap:wrap;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:6px;width:100%">
+            <label>📅 日期</label>
+            <button class="btn sm" onclick="App.toggleAllDates(true)">全选</button>
+            <button class="btn sm" onclick="App.toggleAllDates(false)">全不选</button>
+            <span id="date-count" style="font-size:10px;color:var(--text2);margin-left:auto">已选 0/0</span>
+          </div>
+          <div id="date-list" style="display:flex;flex-wrap:wrap;gap:4px 10px;width:100%;max-height:100px;overflow-y:auto;padding:4px 0;font-size:11px"></div>
+          <div style="display:flex;align-items:center;gap:6px;width:100%;margin-top:4px">
+            <label>⏰ 时段</label>
+            <input type="number" id="sel-sh" value="0" min="0" max="23" style="width:48px">~<input type="number" id="sel-eh" value="23" min="0" max="24" style="width:48px">时
+            <button class="btn primary sm" onclick="App.loadAndDiagnose()">▶ 加载</button>
+          </div>
+        </div>
+
+        <div class="summary-row" id="rtcm-summary" style="display:none"></div>
+
+        <div id="param-area" style="display:none">
+          <div class="param-head">
+            <h2>🎛 参数组合</h2>
+            <span class="spacer"></span>
+            <span class="eval-time">评估时段:
+            <input type="number" id="eval-sh" value="0" min="0" max="23">~
+            <input type="number" id="eval-eh" value="23" min="0" max="24">时
+          </span>
+            <button class="btn sm" onclick="App.addParamSet()">+ 添加</button>
+            <button class="btn primary sm" onclick="App.runEvaluate()">▶ 评估</button>
+            <button class="btn primary sm" onclick="App.saveTask()" style="background:var(--green);border-color:var(--green)">💾 保存任务</button>
+          </div>
+          <div id="param-sets"></div>
+          <div id="eval-log" style="display:none;margin-top:8px;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:8px 10px;max-height:200px;overflow-y:auto;font-family:'SF Mono',Consolas,monospace;font-size:10px;line-height:1.6;color:#8b949e"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <aside class="result-col">
+      <div class="result-scroll">
+
+        <div id="sol-area" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div></div>
+            <button class="btn sm primary" onclick="App.showTrackPlot()" id="btn-track" style="display:none">📊 轨迹图</button>
+          </div>
+          <div class="sol-stats" id="sol-stats"></div>
+          <div class="sol-detail">
+            <div class="sol-coord" id="sol-coord"></div>
+            <div class="sol-coord" id="sol-ratio"></div>
+            <div class="sol-range" id="sol-range"></div>
+          </div>
+          <div class="chart-box"><div class="chart-box-label">解状态时序</div><canvas id="cv-fix"></canvas></div>
+          <div class="chart-box"><div class="chart-box-label">坐标偏差 (N/E/U) · 相对Fixed均值</div><canvas id="cv-dev"></canvas></div>
+        </div>
+
+        <div id="eval-results" style="margin-top:8px"></div>
+
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box" style="width:560px">
+    <div class="modal-head"><h2>配对组管理</h2><button class="modal-close" onclick="App.closeModal()">✕</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="App.addPair()" style="margin-right:auto">+ 新建</button>
+      <button class="btn" onclick="App.closeModal()">取消</button>
+      <button class="btn primary" id="modal-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-box" style="width:680px;max-height:85vh">
+    <div class="modal-head"><h2>❓ RTKLIB 参数调试 — 使用指南</h2><button class="modal-close" onclick="document.getElementById('help-modal').classList.remove('show')">✕</button></div>
+    <div class="modal-body" style="font-size:12px;line-height:1.7;max-height:70vh;overflow-y:auto">
+      <h3 style="color:var(--accent);margin:10px 0 4px">📡 参数调试流程</h3>
+      <ol style="padding-left:18px">
+        <li><b>输入根目录</b> → 点击 <b>扫描</b>，自动发现所有站和日期</li>
+        <li>点击 <b>⚙ 配对组</b> → 创建基站→测站的配对关系</li>
+        <li>选择配对组 → <b>多选日期</b>（Ctrl+点击）→ 设置时段范围 → <b>加载</b></li>
+        <li>调整参数组合 → 点击 <b>▶ 评估</b>，实时查看进度日志</li>
+        <li>查看评估结果：Fixed率对比、最佳参数的坐标偏差图</li>
+        <li>点击 <b>📊 轨迹图</b> 查看RTKPLOT风格的定位轨迹</li>
+      </ol>
+      <h3 style="color:var(--accent);margin:14px 0 4px">📂 文件目录结构</h3>
+      <pre style="background:var(--bg3);padding:8px;border-radius:4px;font-size:10px;overflow-x:auto">根目录\
+  ├── 站号A（基站）\
+  │   ├── 2024-07-06\
+  │   │   ├── 0.rtcm3
+  │   │   ├── 1.rtcm3
+  │   │   └── ...
+  └── 站号B（测站）\
+      └── 2024-07-06\
+          ├── 0.rtcm3
+          └── ...</pre>
+      <h3 style="color:var(--accent);margin:14px 0 4px">🎛 参数说明</h3>
+      <table style="width:100%;font-size:11px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:3px 6px;color:var(--text2)">参数</th><th style="text-align:left;padding:3px 6px;color:var(--text2)">说明</th><th style="text-align:left;padding:3px 6px;color:var(--text2)">典型值</th></tr>
+        <tr><td style="padding:3px 6px">定位模式</td><td>kinematic=动态, static=静态</td><td>kinematic</td></tr>
+        <tr><td style="padding:3px 6px">频率数</td><td>1=单频L1, 2=双频L1+L2, 3=三频</td><td>2</td></tr>
+        <tr><td style="padding:3px 6px">高度角掩模</td><td>低于此仰角的卫星排除</td><td>15°</td></tr>
+        <tr><td style="padding:3px 6px">SNR掩模</td><td>低于此信噪比的观测排除</td><td>30 dB</td></tr>
+        <tr><td style="padding:3px 6px">差分龄期上限</td><td>超过此差分龄期的观测排除</td><td>30 s</td></tr>
+        <tr><td style="padding:3px 6px">新息拒绝阈值</td><td>新息(残差)超过此值拒绝</td><td>30 m</td></tr>
+        <tr><td style="padding:3px 6px">模糊度</td><td>continuous/瞬时/fix-and-hold/关闭</td><td>continuous</td></tr>
+        <tr><td style="padding:3px 6px">Ratio阈值</td><td>AR ratio检验阈值</td><td>3.0</td></tr>
+        <tr><td style="padding:3px 6px">电离层</td><td>off/broadcast(广播星历)/无电离层组合/估计</td><td>broadcast</td></tr>
+        <tr><td style="padding:3px 6px">对流层</td><td>off/Saastamoinen/SBAS/估计</td><td>saas</td></tr>
+        <tr><td style="padding:3px 6px">解算方向</td><td>前向/后向/组合(前后向平滑)</td><td>forward</td></tr>
+      </table>
+      <h3 style="color:var(--accent);margin:14px 0 4px">📊 评估结果解读</h3>
+      <ul style="padding-left:18px">
+        <li><b style="color:var(--green)">Fixed率</b>：固定解占比，越高越好（&gt;80%为优）</li>
+        <li><b style="color:var(--orange)">Float率</b>：浮动解占比，说明模糊度未固定</li>
+        <li><b style="color:var(--red)">Single率</b>：单点解占比，未使用差分</li>
+        <li><b>Ratio</b>：模糊度检验比值，越大固定越可靠</li>
+        <li><b>坐标偏差</b>：N/E/U相对固定解均值的偏差范围</li>
+      </ul>
+      <h3 style="color:var(--accent);margin:14px 0 4px">🗺 轨迹图说明</h3>
+      <ul style="padding-left:18px">
+        <li><b style="color:var(--green)">绿色</b>=固定解，<b style="color:var(--orange)">黄色</b>=浮动解，<b style="color:var(--red)">红色</b>=单点解</li>
+        <li>鼠标<b>滚轮</b>缩放，<b>拖拽</b>平移</li>
+        <li>点击散点查看历元详情</li>
+      </ul>
+      <h3 style="color:var(--accent);margin:14px 0 4px">📄 其他页面</h3>
+      <ul style="padding-left:18px">
+        <li><b>单文件分析</b>：上传单个RTCM/RINEX文件，查看天空图、SNR、DOP</li>
+        <li><b>独立定位</b>：上传流动站+基站文件，执行SPP/RTK/PPP定位</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="track-modal">
+  <div class="modal-box" style="width:92vw;max-width:1200px;max-height:90vh"><div class="modal-head">
+      <h2>📊 定位轨迹 (RTKPLOT)</h2>
+      <button class="modal-close" onclick="App.closeTrackModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:8px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px;font-size:11px">
+        <label style="color:var(--text2)">参数组:</label>
+        <select id="track-param-sel" onchange="App.onTrackParamChange()" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px;max-width:140px"></select>
+        <label style="color:var(--text2)">分辨率:</label>
+        <select id="track-resolution" onchange="App.onTrackSettingChange()" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px">
+          <option value="overview">概览 (60s)</option>
+          <option value="standard" selected>标准 (10s)</option>
+          <option value="detail">详细 (1s)</option>
+        </select>
+        <label style="color:var(--text2)">天数:</label>
+        <select id="track-days" onchange="App.onTrackSettingChange()" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px">
+          <option value="1">1天</option>
+          <option value="3">3天</option>
+          <option value="7" selected>7天</option>
+          <option value="14">14天</option>
+          <option value="30">30天</option>
+          <option value="0">全部</option>
+        </select>
+        <label style="color:var(--text2)">最大量:</label>
+        <select id="track-maxpts" onchange="App.onTrackSettingChange()" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px">
+          <option value="1000">1000</option>
+          <option value="3000" selected>3000</option>
+          <option value="5000">5000</option>
+          <option value="10000">10000</option>
+          <option value="0">全部</option>
+        </select>
+        <button class="btn sm" onclick="App.loadTrackData()" id="btn-load-track" style="white-space:nowrap">🔄 加载轨迹</button>
+        <span id="track-warn" style="color:var(--orange);font-size:10px;display:none"></span>
+      </div>
+      <div class="chart-box" style="display:flex;flex-direction:column;height:calc(80vh - 120px)">
+        <div class="chart-box-label" id="track-chart-label">N / E / U 偏差时序</div>
+        <canvas id="cv-track" style="flex:1;width:100%;min-height:300px"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script src="/js/charts.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
